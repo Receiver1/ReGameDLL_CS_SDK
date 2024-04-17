@@ -30,6 +30,7 @@
 
 #include <API/CSPlayerItem.h>
 #include <API/CSPlayerWeapon.h>
+#include <utlarray.h>
 
 enum WeaponInfiniteAmmoMode
 {
@@ -37,9 +38,7 @@ enum WeaponInfiniteAmmoMode
 	WPNMODE_INFINITE_BPAMMO
 };
 
-class CCSPlayer: public CCSMonster
-{
-	DECLARE_CLASS_TYPES(CCSPlayer, CCSMonster);
+class CCSPlayer: public CCSMonster {
 public:
 	CCSPlayer() :
 		m_bForceShowMenu(false),
@@ -47,61 +46,87 @@ public:
 		m_flSpawnProtectionEndTime(0),
 		m_iWeaponInfiniteAmmo(0),
 		m_iWeaponInfiniteIds(0),
-		m_bCanShootOverride(false)
+		m_bCanShootOverride(false),
+		m_bGameForcingRespawn(false),
+		m_bAutoBunnyHopping(false),
+		m_bMegaBunnyJumping(false),
+		m_bPlantC4Anywhere(false),
+		m_bSpawnProtectionEffects(false),
+		m_flJumpHeight(0),
+		m_flLongJumpHeight(0),
+		m_flLongJumpForce(0),
+		m_flDuckSpeedMultiplier(0),
+		m_iUserID(-1),
+		m_iGibDamageThreshold(GIB_PLAYER_THRESHOLD)
 	{
 		m_szModel[0] = '\0';
+
+		// Resets the kill history for this player
+		for (int i = 0; i < MAX_CLIENTS; i++)
+		{
+			m_iNumKilledByUnanswered[i] = 0;
+			m_bPlayerDominated[i]       = false;
+		}
 	}
 
-	virtual bool IsConnected() const = 0;
-	virtual void SetAnimation(PLAYER_ANIM playerAnim) = 0;
-	virtual void AddAccount(int amount, RewardType type = RT_NONE, bool bTrackChange = true) = 0;
-	virtual CBaseEntity *GiveNamedItem(const char *pszName) = 0;
-	virtual CBaseEntity *GiveNamedItemEx(const char *pszName) = 0;
-	virtual void GiveDefaultItems() = 0;
-	virtual void GiveShield(bool bDeploy = true) = 0;
-	virtual void DropShield(bool bDeploy = true) = 0;
-	virtual void DropPlayerItem(const char *pszItemName) = 0;
-	virtual bool RemoveShield() = 0;
-	virtual void RemoveAllItems(bool bRemoveSuit) = 0;
-	virtual bool RemovePlayerItem(const char* pszItemName) = 0;
-	virtual void SetPlayerModel(bool bHasC4) = 0;
-	virtual void SetPlayerModelEx(const char *modelName) = 0;
-	virtual void SetNewPlayerModel(const char *modelName) = 0;
-	virtual void ClientCommand(const char *cmd, const char *arg1 = nullptr, const char *arg2 = nullptr, const char *arg3 = nullptr) = 0;
-	virtual void SetProgressBarTime(int time) = 0;
-	virtual void SetProgressBarTime2(int time, float timeElapsed) = 0;
-	virtual struct edict_s *EntSelectSpawnPoint() = 0;
-	virtual void SetBombIcon(bool bFlash = false) = 0;
-	virtual void SetScoreAttrib(CBasePlayer *dest) = 0;
-	virtual void SendItemStatus() = 0;
-	virtual void ReloadWeapons(CBasePlayerItem *pWeapon = nullptr, bool bForceReload = false, bool bForceRefill = false) = 0;
-	virtual void Observer_SetMode(int iMode) = 0;
-	virtual bool SelectSpawnSpot(const char *pEntClassName, CBaseEntity* &pSpot) = 0;
-	virtual bool SwitchWeapon(CBasePlayerItem *pWeapon) = 0;
-	virtual void SwitchTeam() = 0;
-	virtual bool JoinTeam(TeamName team) = 0;
-	virtual void StartObserver(Vector& vecPosition, Vector& vecViewAngle) = 0;
-	virtual void TeamChangeUpdate() = 0;
-	virtual void DropSecondary() = 0;
-	virtual void DropPrimary() = 0;
-	virtual bool HasPlayerItem(CBasePlayerItem *pCheckItem) = 0;
-	virtual bool HasNamedPlayerItem(const char *pszItemName) = 0;
-	virtual CBasePlayerItem *GetItemById(WeaponIdType weaponID) = 0;
-	virtual CBasePlayerItem *GetItemByName(const char *itemName) = 0;
-	virtual void Disappear() = 0;
-	virtual void MakeVIP() = 0;
-	virtual bool MakeBomber() = 0;
-	virtual void ResetSequenceInfo() = 0;
-	virtual void StartDeathCam() = 0;
-	virtual bool RemovePlayerItemEx(const char* pszItemName, bool bRemoveAmmo) = 0;
-	virtual void SetSpawnProtection(float flProtectionTime) = 0;
-	virtual void RemoveSpawnProtection() = 0;
-	virtual bool HintMessageEx(const char *pMessage, float duration = 6.0f, bool bDisplayIfPlayerDead = false, bool bOverride = false) = 0;
+	virtual bool IsConnected() const;
+	virtual void SetAnimation(PLAYER_ANIM playerAnim);
+	virtual void AddAccount(int amount, RewardType type = RT_NONE, bool bTrackChange = true);
+	virtual CBaseEntity *GiveNamedItem(const char *pszName);
+	virtual CBaseEntity *GiveNamedItemEx(const char *pszName);
+	virtual void GiveDefaultItems();
+	virtual void GiveShield(bool bDeploy = true);
+	virtual CBaseEntity *DropShield(bool bDeploy = true);
+	virtual CBaseEntity* DropPlayerItem(const char *pszItemName);
+	virtual bool RemoveShield();
+	virtual void RemoveAllItems(bool bRemoveSuit);
+	virtual bool RemovePlayerItem(const char* pszItemName);
+	virtual void SetPlayerModel(bool bHasC4);
+	virtual void SetPlayerModelEx(const char *modelName);
+	virtual void SetNewPlayerModel(const char *modelName);
+	virtual void ClientCommand(const char *cmd, const char *arg1 = nullptr, const char *arg2 = nullptr, const char *arg3 = nullptr);
+	virtual void SetProgressBarTime(int time);
+	virtual void SetProgressBarTime2(int time, float timeElapsed);
+	virtual struct edict_s *EntSelectSpawnPoint();
+	virtual void SetBombIcon(bool bFlash = false);
+	virtual void SetScoreAttrib(CBasePlayer *dest);
+	virtual void SendItemStatus();
+	virtual void ReloadWeapons(CBasePlayerItem *pWeapon = nullptr, bool bForceReload = false, bool bForceRefill = false);
+	virtual void Observer_SetMode(int iMode);
+	virtual bool SelectSpawnSpot(const char *pEntClassName, CBaseEntity* &pSpot);
+	virtual bool SwitchWeapon(CBasePlayerItem *pWeapon);
+	virtual void SwitchTeam();
+	virtual bool JoinTeam(TeamName team);
+	virtual void StartObserver(Vector& vecPosition, Vector& vecViewAngle);
+	virtual void TeamChangeUpdate();
+	virtual void DropSecondary();
+	virtual void DropPrimary();
+	virtual bool HasPlayerItem(CBasePlayerItem *pCheckItem);
+	virtual bool HasNamedPlayerItem(const char *pszItemName);
+	virtual CBasePlayerItem *GetItemById(WeaponIdType weaponID);
+	virtual CBasePlayerItem *GetItemByName(const char *itemName);
+	virtual void Disappear();
+	virtual void MakeVIP();
+	virtual bool MakeBomber();
+	virtual void ResetSequenceInfo();
+	virtual void StartDeathCam();
+	virtual bool RemovePlayerItemEx(const char* pszItemName, bool bRemoveAmmo);
+	virtual void SetSpawnProtection(float flProtectionTime);
+	virtual void RemoveSpawnProtection();
+	virtual bool HintMessageEx(const char *pMessage, float duration = 6.0f, bool bDisplayIfPlayerDead = false, bool bOverride = false);
+	virtual void Reset();
+	virtual void OnSpawnEquip(bool addDefault = true, bool equipGame = true);
+	virtual void SetScoreboardAttributes(CBasePlayer *destination = nullptr);
 
-	void Reset();
+	bool IsPlayerDominated(int iPlayerIndex) const;
+	void SetPlayerDominated(CBasePlayer *pPlayer, bool bDominated);
+
+	void ResetVars();
+	void ResetAllStats();
 
 	void OnSpawn();
 	void OnKilled();
+	void OnConnect();
 
 	CBasePlayer *BasePlayer() const;
 
@@ -125,6 +150,31 @@ public:
 	int m_iWeaponInfiniteAmmo;
 	int m_iWeaponInfiniteIds;
 	bool m_bCanShootOverride;
+	bool m_bGameForcingRespawn;
+	bool m_bAutoBunnyHopping;
+	bool m_bMegaBunnyJumping;
+	bool m_bPlantC4Anywhere;
+	bool m_bSpawnProtectionEffects;
+	double m_flJumpHeight;
+	double m_flLongJumpHeight;
+	double m_flLongJumpForce;
+	double m_flDuckSpeedMultiplier;
+
+	int m_iUserID;
+	struct CDamageRecord_t
+	{
+		float flDamage            = 0.0f;
+		float flFlashDurationTime = 0.0f;
+		int userId                = -1;
+	};
+	using DamageList_t = CUtlArray<CDamageRecord_t, MAX_CLIENTS>;
+	DamageList_t m_DamageList; // A unified array of recorded damage that includes giver and taker in each entry
+	DamageList_t &GetDamageList() { return m_DamageList; }
+	void RecordDamage(CBasePlayer *pAttacker, float flDamage, float flFlashDurationTime = -1);
+	int m_iNumKilledByUnanswered[MAX_CLIENTS]; // [0-31] how many unanswered kills this player has been dealt by each other player
+	bool m_bPlayerDominated[MAX_CLIENTS]; // [0-31] array of state per other player whether player is dominating other players
+
+	int m_iGibDamageThreshold; // negative health to reach to gib player
 };
 
 // Inlines
@@ -146,3 +196,37 @@ inline CCSPlayer::EProtectionState CCSPlayer::GetProtectionState() const
 	// has expired
 	return ProtectionSt_Expired;
 }
+
+// Returns whether this player is dominating the specified other player
+inline bool CCSPlayer::IsPlayerDominated(int iPlayerIndex) const
+{
+	if (iPlayerIndex < 0 || iPlayerIndex >= MAX_CLIENTS)
+		return false;
+
+	return m_bPlayerDominated[iPlayerIndex];
+}
+
+// Sets whether this player is dominating the specified other player
+inline void CCSPlayer::SetPlayerDominated(CBasePlayer *pPlayer, bool bDominated)
+{
+	int iPlayerIndex = pPlayer->entindex();
+	Assert(iPlayerIndex > 0 && iPlayerIndex <= MAX_CLIENTS);
+	m_bPlayerDominated[iPlayerIndex - 1] = bDominated;
+}
+
+#ifdef REGAMEDLL_API
+// Determine whether player can be gibbed or not
+inline bool CBasePlayer::ShouldGibPlayer(int iGib)
+{
+	// Always gib the player regardless of incoming damage
+	if (iGib == GIB_ALWAYS)
+		return true;
+
+	// Gib the player if health is below the gib damage threshold
+	if (pev->health < CSPlayer()->m_iGibDamageThreshold && iGib != GIB_NEVER)
+		return true;
+
+	// do not gib the player
+	return false;
+}
+#endif

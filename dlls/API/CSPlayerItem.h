@@ -31,14 +31,14 @@
 class CBasePlayerItem;
 class CCSPlayerItem: public CCSAnimating
 {
-	DECLARE_CLASS_TYPES(CCSPlayerItem, CCSAnimating);
 public:
 	CCSPlayerItem()
 	{
 		Q_memset(&m_ItemInfo, 0, sizeof(m_ItemInfo));
 	}
 
-	virtual void SetItemInfo(ItemInfo *pInfo) = 0;
+	virtual void SetItemInfo(ItemInfo *pInfo);
+	virtual int GetItemInfo(ItemInfo *pInfo);
 
 	CBasePlayerItem *BasePlayerItem() const;
 
